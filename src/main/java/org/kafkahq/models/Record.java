@@ -1,13 +1,12 @@
 package org.kafkahq.models;
 
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.common.serialization.Deserializer;
 
 import java.nio.ByteBuffer;
 import java.util.Base64;
@@ -28,9 +27,9 @@ public class Record {
     private final byte[] value;
     private final Integer valueSchemaId;
     private final Map<String, String> headers = new HashMap<>();
-    private final KafkaAvroDeserializer kafkaAvroDeserializer;
+    private final Deserializer deserializer;
 
-    public Record(ConsumerRecord<byte[], byte[]> record, KafkaAvroDeserializer kafkaAvroDeserializer) {
+    public Record(ConsumerRecord<byte[], byte[]> record, Deserializer deserializer) {
         this.topic = record.topic();
         this.partition = record.partition();
         this.offset = record.offset();
@@ -40,11 +39,11 @@ public class Record {
         this.keySchemaId = getAvroSchemaId(this.key);
         this.value = record.value();
         this.valueSchemaId = getAvroSchemaId(this.value);
-        for (Header header: record.headers()) {
+        for (Header header : record.headers()) {
             this.headers.put(header.key(), header.value() != null ? new String(header.value()) : null);
         }
 
-        this.kafkaAvroDeserializer = kafkaAvroDeserializer;
+        this.deserializer = deserializer;
     }
 
     public String getKeyAsString() {
@@ -66,9 +65,9 @@ public class Record {
     private String convertToString(byte[] payload, Integer keySchemaId) {
         if (payload == null) {
             return null;
-        } else  if (keySchemaId != null) {
+        } else if (keySchemaId != null) {
             try {
-                GenericRecord deserialize = (GenericRecord) kafkaAvroDeserializer.deserialize(topic, payload);
+                Object deserialize = deserializer.deserialize(topic, payload);
                 return deserialize.toString();
             } catch (Exception exception) {
                 return new String(payload);

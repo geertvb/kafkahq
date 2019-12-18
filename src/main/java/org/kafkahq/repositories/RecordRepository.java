@@ -20,6 +20,7 @@ import org.kafkahq.models.Partition;
 import org.kafkahq.models.Record;
 import org.kafkahq.models.Topic;
 import org.kafkahq.modules.KafkaModule;
+import org.kafkahq.serdes.DeserializerFactory;
 import org.kafkahq.utils.Debug;
 
 import javax.inject.Inject;
@@ -40,7 +41,7 @@ public class RecordRepository extends AbstractRepository {
     private TopicRepository topicRepository;
 
     @Inject
-    private SchemaRegistryRepository schemaRegistryRepository;
+    private DeserializerFactory deserializerFactory;
 
     @Value("${kafkahq.topic-data.poll-timeout:1000}")
     protected int pollTimeout;
@@ -314,7 +315,7 @@ public class RecordRepository extends AbstractRepository {
     }
 
     private Record newRecord(ConsumerRecord<byte[], byte[]> record, BaseOptions options) {
-        return new Record(record, this.schemaRegistryRepository.getKafkaAvroDeserializer(options.clusterId));
+        return new Record(record, this.deserializerFactory.getDeserializer(options.clusterId));
     }
 
     public RecordMetadata produce(String clusterId, String topic, String value, Map<String, String> headers, Optional<String> key, Optional<Integer> partition, Optional<Long> timestamp) throws ExecutionException, InterruptedException {
