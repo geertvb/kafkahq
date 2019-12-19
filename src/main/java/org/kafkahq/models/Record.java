@@ -65,15 +65,15 @@ public class Record {
     private String convertToString(byte[] payload, Integer keySchemaId) {
         if (payload == null) {
             return null;
-        } else if (keySchemaId != null) {
+        } else /*if (keySchemaId != null)*/ {
             try {
                 Object deserialize = deserializer.deserialize(topic, payload);
                 return deserialize.toString();
             } catch (Exception exception) {
                 return new String(payload);
             }
-        } else {
-            return new String(payload);
+//        } else {
+//            return new String(payload);
         }
     }
 
