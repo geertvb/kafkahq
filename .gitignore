@@ -42,3 +42,10 @@ connects-plugins/
 ## Docker
 .env
 docker-compose.override.yml
+
+## IntelliJ
+/kafkahq.iml
+/kafkahq.ipr
+/kafkahq.iws
+
+/application.yml

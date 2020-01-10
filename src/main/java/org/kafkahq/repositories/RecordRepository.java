@@ -15,12 +15,12 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.codehaus.httpcache4j.uri.URIBuilder;
 import org.kafkahq.models.Partition;
 import org.kafkahq.models.Record;
 import org.kafkahq.models.Topic;
 import org.kafkahq.modules.KafkaModule;
-import org.kafkahq.serdes.DeserializerFactory;
 import org.kafkahq.utils.Debug;
 
 import javax.inject.Inject;
@@ -28,6 +28,7 @@ import javax.inject.Singleton;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -41,7 +42,7 @@ public class RecordRepository extends AbstractRepository {
     private TopicRepository topicRepository;
 
     @Inject
-    private DeserializerFactory deserializerFactory;
+    private Function<String, Deserializer> deserializerFactory;
 
     @Value("${kafkahq.topic-data.poll-timeout:1000}")
     protected int pollTimeout;
@@ -68,12 +69,12 @@ public class RecordRepository extends AbstractRepository {
             partitions.forEach(consumer::seek);
 
             partitions.forEach((topicPartition, first) ->
-                log.trace(
-                    "Consume [topic: {}] [partition: {}] [start: {}]",
-                    topicPartition.topic(),
-                    topicPartition.partition(),
-                    first
-                )
+                    log.trace(
+                            "Consume [topic: {}] [partition: {}] [start: {}]",
+                            topicPartition.topic(),
+                            topicPartition.partition(),
+                            first
+                    )
             );
 
             ConsumerRecords<byte[], byte[]> records = this.poll(consumer);
@@ -95,21 +96,21 @@ public class RecordRepository extends AbstractRepository {
             KafkaConsumer<byte[], byte[]> consumer = this.kafkaModule.getConsumer(clusterId);
 
             partitions
-                .forEach(partition -> map.put(
-                    new TopicPartition(partition.getTopic(), partition.getPartition()),
-                    timestamp
-                ));
+                    .forEach(partition -> map.put(
+                            new TopicPartition(partition.getTopic(), partition.getPartition()),
+                            timestamp
+                    ));
 
             List<TimeOffset> collect = consumer.offsetsForTimes(map)
-                .entrySet()
-                .stream()
-                .map(r -> r.getValue() != null ? new TimeOffset(
-                    r.getKey().topic(),
-                    r.getKey().partition(),
-                    r.getValue().offset()
-                ) : null)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                    .entrySet()
+                    .stream()
+                    .map(r -> r.getValue() != null ? new TimeOffset(
+                            r.getKey().topic(),
+                            r.getKey().partition(),
+                            r.getValue().offset()
+                    ) : null)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
 
             consumer.close();
 
@@ -134,12 +135,12 @@ public class RecordRepository extends AbstractRepository {
                 .getPartitions()
                 .stream()
                 .map(partition -> getFirstOffsetForSortOldest(consumer, partition, options)
-                    .map(offsetBound -> offsetBound.withTopicPartition(
-                        new TopicPartition(
-                            partition.getTopic(),
-                            partition.getId()
-                        )
-                    ))
+                        .map(offsetBound -> offsetBound.withTopicPartition(
+                                new TopicPartition(
+                                        partition.getTopic(),
+                                        partition.getId()
+                                )
+                        ))
                 )
                 .filter(Optional::isPresent)
                 .map(Optional::get)
@@ -150,64 +151,64 @@ public class RecordRepository extends AbstractRepository {
         int pollSizePerPartition = pollSizePerPartition(topic, options);
 
         return topic
-            .getPartitions()
-            .parallelStream()
-            .map(partition -> {
-                KafkaConsumer<byte[], byte[]> consumer = this.kafkaModule.getConsumer(
-                    options.clusterId,
-                    new Properties() {{
-                        put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.valueOf(pollSizePerPartition));
-                    }}
-                );
+                .getPartitions()
+                .parallelStream()
+                .map(partition -> {
+                            KafkaConsumer<byte[], byte[]> consumer = this.kafkaModule.getConsumer(
+                                    options.clusterId,
+                                    new Properties() {{
+                                        put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.valueOf(pollSizePerPartition));
+                                    }}
+                            );
 
-                return getOffsetForSortNewest(consumer, partition, options, pollSizePerPartition)
-                        .map(offset -> offset.withTopicPartition(
-                            new TopicPartition(
-                                partition.getTopic(),
-                                partition.getId()
-                            )
-                        ));
-                }
-            )
-            .filter(Optional::isPresent)
-            .map(Optional::get)
-            .flatMap(topicPartitionOffset -> {
-                topicPartitionOffset.getConsumer().assign(Collections.singleton(topicPartitionOffset.getTopicPartition()));
-                topicPartitionOffset.getConsumer().seek(topicPartitionOffset.getTopicPartition(), topicPartitionOffset.getBegin());
+                            return getOffsetForSortNewest(consumer, partition, options, pollSizePerPartition)
+                                    .map(offset -> offset.withTopicPartition(
+                                            new TopicPartition(
+                                                    partition.getTopic(),
+                                                    partition.getId()
+                                            )
+                                    ));
+                        }
+                )
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .flatMap(topicPartitionOffset -> {
+                    topicPartitionOffset.getConsumer().assign(Collections.singleton(topicPartitionOffset.getTopicPartition()));
+                    topicPartitionOffset.getConsumer().seek(topicPartitionOffset.getTopicPartition(), topicPartitionOffset.getBegin());
 
-                List<Record> list = new ArrayList<>();
-                int emptyPoll = 0;
+                    List<Record> list = new ArrayList<>();
+                    int emptyPoll = 0;
 
-                do {
-                    ConsumerRecords<byte[], byte[]> records;
+                    do {
+                        ConsumerRecords<byte[], byte[]> records;
 
-                    records = this.poll(topicPartitionOffset.getConsumer());
+                        records = this.poll(topicPartitionOffset.getConsumer());
 
-                    if (records.isEmpty()) {
-                        emptyPoll++;
-                    } else {
-                        emptyPoll = 0;
-                    }
-
-                    for (ConsumerRecord<byte[], byte[]> record : records) {
-                        if (record.offset() > topicPartitionOffset.getEnd()) {
-                            emptyPoll = 2;
-                            break;
+                        if (records.isEmpty()) {
+                            emptyPoll++;
+                        } else {
+                            emptyPoll = 0;
                         }
 
-                        list.add(newRecord(record, options));
+                        for (ConsumerRecord<byte[], byte[]> record : records) {
+                            if (record.offset() > topicPartitionOffset.getEnd()) {
+                                emptyPoll = 2;
+                                break;
+                            }
+
+                            list.add(newRecord(record, options));
+                        }
                     }
-                }
-                while (emptyPoll < 1);
+                    while (emptyPoll < 1);
 
-                Collections.reverse(list);
+                    Collections.reverse(list);
 
-                topicPartitionOffset.getConsumer().close();
+                    topicPartitionOffset.getConsumer().close();
 
-                return Stream.of(list);
-            })
-            .flatMap(List::stream)
-            .collect(Collectors.toList());
+                    return Stream.of(list);
+                })
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
     }
 
     private int pollSizePerPartition(Topic topic, Options options) {
@@ -227,10 +228,10 @@ public class RecordRepository extends AbstractRepository {
 
         if (options.timestamp != null) {
             Map<TopicPartition, OffsetAndTimestamp> timestampOffset = consumer.offsetsForTimes(
-                ImmutableMap.of(
-                    new TopicPartition(partition.getTopic(), partition.getId()),
-                    options.timestamp
-                )
+                    ImmutableMap.of(
+                            new TopicPartition(partition.getTopic(), partition.getId()),
+                            options.timestamp
+                    )
             );
 
             for (Map.Entry<TopicPartition, OffsetAndTimestamp> entry : timestampOffset.entrySet()) {
@@ -247,42 +248,42 @@ public class RecordRepository extends AbstractRepository {
 
     private Optional<OffsetBound> getFirstOffsetForSortOldest(KafkaConsumer<byte[], byte[]> consumer, Partition partition, Options options) {
         return getFirstOffset(consumer, partition, options)
-            .map(first -> {
-                if (options.after.size() > 0 && options.after.containsKey(partition.getId())) {
-                    first = options.after.get(partition.getId()) + 1;
-                }
+                .map(first -> {
+                    if (options.after.size() > 0 && options.after.containsKey(partition.getId())) {
+                        first = options.after.get(partition.getId()) + 1;
+                    }
 
-                if (first > partition.getLastOffset()) {
-                    return null;
-                }
+                    if (first > partition.getLastOffset()) {
+                        return null;
+                    }
 
-                return OffsetBound.builder()
-                    .begin(first)
-                    .build();
-            });
+                    return OffsetBound.builder()
+                            .begin(first)
+                            .build();
+                });
     }
 
     private Optional<EndOffsetBound> getOffsetForSortNewest(KafkaConsumer<byte[], byte[]> consumer, Partition partition, Options options, int pollSizePerPartition) {
         return getFirstOffset(consumer, partition, options)
-            .map(first -> {
-                long last = partition.getLastOffset();
+                .map(first -> {
+                    long last = partition.getLastOffset();
 
-                if (pollSizePerPartition > 0 && options.after.containsKey(partition.getId())) {
-                    last = options.after.get(partition.getId()) - 1;
-                }
+                    if (pollSizePerPartition > 0 && options.after.containsKey(partition.getId())) {
+                        last = options.after.get(partition.getId()) - 1;
+                    }
 
-                if (last == partition.getFirstOffset() || last < 0) {
-                    return null;
-                } else if (!(last - pollSizePerPartition < first)) {
-                    first = last - pollSizePerPartition;
-                }
+                    if (last == partition.getFirstOffset() || last < 0) {
+                        return null;
+                    } else if (!(last - pollSizePerPartition < first)) {
+                        first = last - pollSizePerPartition;
+                    }
 
-                return EndOffsetBound.builder()
-                    .consumer(consumer)
-                    .begin(first)
-                    .end(last)
-                    .build();
-            });
+                    return EndOffsetBound.builder()
+                            .consumer(consumer)
+                            .begin(first)
+                            .end(last)
+                            .build();
+                });
     }
 
     @SuppressWarnings("deprecation")
@@ -315,30 +316,30 @@ public class RecordRepository extends AbstractRepository {
     }
 
     private Record newRecord(ConsumerRecord<byte[], byte[]> record, BaseOptions options) {
-        return new Record(record, this.deserializerFactory.getDeserializer(options.clusterId));
+        return new Record(record, this.deserializerFactory.apply(options.clusterId));
     }
 
     public RecordMetadata produce(String clusterId, String topic, String value, Map<String, String> headers, Optional<String> key, Optional<Integer> partition, Optional<Long> timestamp) throws ExecutionException, InterruptedException {
         return kafkaModule.getProducer(clusterId).send(new ProducerRecord<>(
-            topic,
-            partition.orElse(null),
-            timestamp.orElse(null),
-            key.orElse(null),
-            value,
-            headers
-                .entrySet()
-                .stream()
-                .map(entry -> new RecordHeader(entry.getKey(), entry.getValue() == null ? null : entry.getValue().getBytes()))
-                .collect(Collectors.toList())
+                topic,
+                partition.orElse(null),
+                timestamp.orElse(null),
+                key.orElse(null),
+                value,
+                headers
+                        .entrySet()
+                        .stream()
+                        .map(entry -> new RecordHeader(entry.getKey(), entry.getValue() == null ? null : entry.getValue().getBytes()))
+                        .collect(Collectors.toList())
         )).get();
     }
 
     public void delete(String clusterId, String topic, Integer partition, byte[] key) throws ExecutionException, InterruptedException {
         kafkaModule.getProducer(clusterId).send(new ProducerRecord<>(
-            topic,
-            partition,
-            new String(key),
-            null
+                topic,
+                partition,
+                new String(key),
+                null
         )).get();
     }
 
@@ -357,12 +358,12 @@ public class RecordRepository extends AbstractRepository {
         partitions.forEach(consumer::seek);
 
         partitions.forEach((topicPartition, first) ->
-            log.trace(
-                "Search [topic: {}] [partition: {}] [start: {}]",
-                topicPartition.topic(),
-                topicPartition.partition(),
-                first
-            )
+                log.trace(
+                        "Search [topic: {}] [partition: {}] [start: {}]",
+                        topicPartition.topic(),
+                        topicPartition.partition(),
+                        first
+                )
         );
 
         return Flowable.generate(() -> new SearchEvent(topic), (searchEvent, emitter) -> {
@@ -395,11 +396,11 @@ public class RecordRepository extends AbstractRepository {
                     matchesCount.getAndIncrement();
 
                     log.trace(
-                        "Record [topic: {}] [partition: {}] [offset: {}] [key: {}]",
-                        record.topic(),
-                        record.partition(),
-                        record.offset(),
-                        record.key()
+                            "Record [topic: {}] [partition: {}] [offset: {}] [key: {}]",
+                            record.topic(),
+                            record.partition(),
+                            record.offset(),
+                            record.key()
                     );
                 }
             }
@@ -461,9 +462,9 @@ public class RecordRepository extends AbstractRepository {
 
         private SearchEvent(Topic topic) {
             topic.getPartitions()
-                .forEach(partition -> {
-                    offsets.put(partition.getId(), new Offset(partition.getFirstOffset(), partition.getFirstOffset(), partition.getLastOffset()));
-                });
+                    .forEach(partition -> {
+                        offsets.put(partition.getId(), new Offset(partition.getFirstOffset(), partition.getFirstOffset(), partition.getLastOffset()));
+                    });
         }
 
         public Event<SearchEvent> end() {
@@ -513,25 +514,25 @@ public class RecordRepository extends AbstractRepository {
         List<Topic> topics = topicRepository.findByName(clusterId, options.topics);
 
         consumer
-            .assign(topics
-                .stream()
-                .flatMap(topic -> topic.getPartitions()
-                    .stream()
-                    .map(partition -> new TopicPartition(topic.getName(), partition.getId()))
-                )
-                .collect(Collectors.toList())
-            );
+                .assign(topics
+                        .stream()
+                        .flatMap(topic -> topic.getPartitions()
+                                .stream()
+                                .map(partition -> new TopicPartition(topic.getName(), partition.getId()))
+                        )
+                        .collect(Collectors.toList())
+                );
 
         if (options.getAfter() != null) {
             options
-                .getAfter()
-                .forEach(s -> {
-                    String[] split = s.split(",");
-                    consumer.seek(
-                        new TopicPartition(split[0], Integer.parseInt(split[1])),
-                        Long.parseLong(split[2])
-                    );
-                });
+                    .getAfter()
+                    .forEach(s -> {
+                        String[] split = s.split(",");
+                        consumer.seek(
+                                new TopicPartition(split[0], Integer.parseInt(split[1])),
+                                Long.parseLong(split[2])
+                        );
+                    });
         }
 
         return Flowable.generate(TailEvent::new, (state, subscriber) -> {
@@ -542,22 +543,22 @@ public class RecordRepository extends AbstractRepository {
             for (ConsumerRecord<byte[], byte[]> record : records) {
 
                 state.offsets.put(
-                    ImmutableMap.of(
-                        record.topic(),
-                        record.partition()
-                    ),
-                    record.offset()
+                        ImmutableMap.of(
+                                record.topic(),
+                                record.partition()
+                        ),
+                        record.offset()
                 );
 
                 Record current = newRecord(record, options);
                 if (searchFilter(options, current)) {
                     list.add(current);
                     log.trace(
-                        "Record [topic: {}] [partition: {}] [offset: {}] [key: {}]",
-                        record.topic(),
-                        record.partition(),
-                        record.offset(),
-                        record.key()
+                            "Record [topic: {}] [partition: {}] [offset: {}] [key: {}]",
+                            record.topic(),
+                            record.partition(),
+                            record.offset(),
+                            record.key()
                     );
                 }
             }
@@ -595,6 +596,7 @@ public class RecordRepository extends AbstractRepository {
             OLDEST,
             NEWEST,
         }
+
         private String topic;
         private int size;
         private Map<Integer, Long> after = new HashMap<>();
@@ -616,9 +618,9 @@ public class RecordRepository extends AbstractRepository {
 
             //noinspection UnstableApiUsage
             Splitter.on('_')
-                .withKeyValueSeparator('-')
-                .split(after)
-                .forEach((key, value) -> this.after.put(Integer.valueOf(key), Long.valueOf(value)));
+                    .withKeyValueSeparator('-')
+                    .split(after)
+                    .forEach((key, value) -> this.after.put(Integer.valueOf(key), Long.valueOf(value)));
         }
 
         public String pagination(Map<Integer, SearchEvent.Offset> offsets) {
