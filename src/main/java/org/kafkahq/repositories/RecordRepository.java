@@ -316,7 +316,13 @@ public class RecordRepository extends AbstractRepository {
     }
 
     private Record newRecord(ConsumerRecord<byte[], byte[]> record, BaseOptions options) {
-        return new Record(record, this.deserializerFactory.apply(options.clusterId));
+        Deserializer keyDeserializer = this.deserializerFactory.apply(options.clusterId);
+        keyDeserializer.configure(null, true);
+
+        Deserializer valueDeserializer = this.deserializerFactory.apply(options.clusterId);
+        valueDeserializer.configure(null, false);
+
+        return new Record(record, keyDeserializer, valueDeserializer);
     }
 
     public RecordMetadata produce(String clusterId, String topic, String value, Map<String, String> headers, Optional<String> key, Optional<Integer> partition, Optional<Long> timestamp) throws ExecutionException, InterruptedException {

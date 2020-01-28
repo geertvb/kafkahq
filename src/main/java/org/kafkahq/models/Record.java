@@ -27,9 +27,10 @@ public class Record {
     private final byte[] value;
     private final Integer valueSchemaId;
     private final Map<String, String> headers = new HashMap<>();
-    private final Deserializer deserializer;
+    private final Deserializer valueDeserializer;
+    private final Deserializer keyDeserializer;
 
-    public Record(ConsumerRecord<byte[], byte[]> record, Deserializer deserializer) {
+    public Record(ConsumerRecord<byte[], byte[]> record, Deserializer keyDeserializer, Deserializer valueDeserializer) {
         this.topic = record.topic();
         this.partition = record.partition();
         this.offset = record.offset();
@@ -43,11 +44,12 @@ public class Record {
             this.headers.put(header.key(), header.value() != null ? new String(header.value()) : null);
         }
 
-        this.deserializer = deserializer;
+        this.valueDeserializer = valueDeserializer;
+        this.keyDeserializer = keyDeserializer;
     }
 
     public String getKeyAsString() {
-        return convertToString(key, keySchemaId);
+        return convertToString(key, keySchemaId, keyDeserializer);
     }
 
     public String getKeyAsBase64() {
@@ -59,13 +61,13 @@ public class Record {
     }
 
     public String getValueAsString() {
-        return convertToString(value, valueSchemaId);
+        return convertToString(value, valueSchemaId, valueDeserializer);
     }
 
-    private String convertToString(byte[] payload, Integer keySchemaId) {
+    private String convertToString(byte[] payload, Integer schemaId, Deserializer deserializer) {
         if (payload == null) {
             return null;
-        } else /*if (keySchemaId != null)*/ {
+        } else /*if (schemaId != null)*/ {
             try {
                 Object deserialize = deserializer.deserialize(topic, payload);
                 return deserialize.toString();
