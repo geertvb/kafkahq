@@ -15,12 +15,12 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.codehaus.httpcache4j.uri.URIBuilder;
 import org.kafkahq.models.Partition;
 import org.kafkahq.models.Record;
 import org.kafkahq.models.Topic;
 import org.kafkahq.modules.KafkaModule;
-import org.kafkahq.serdes.DeserializerFactory;
 import org.kafkahq.utils.Debug;
 
 import javax.inject.Inject;
@@ -28,6 +28,7 @@ import javax.inject.Singleton;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -41,7 +42,7 @@ public class RecordRepository extends AbstractRepository {
     private TopicRepository topicRepository;
 
     @Inject
-    private DeserializerFactory deserializerFactory;
+    private Function<String, Deserializer> deserializerFactory;
 
     @Value("${kafkahq.topic-data.poll-timeout:1000}")
     protected int pollTimeout;
@@ -315,7 +316,7 @@ public class RecordRepository extends AbstractRepository {
     }
 
     private Record newRecord(ConsumerRecord<byte[], byte[]> record, BaseOptions options) {
-        return new Record(record, this.deserializerFactory.getDeserializer(options.clusterId));
+        return new Record(record, this.deserializerFactory.apply(options.clusterId));
     }
 
     public RecordMetadata produce(String clusterId, String topic, String value, Map<String, String> headers, Optional<String> key, Optional<Integer> partition, Optional<Long> timestamp) throws ExecutionException, InterruptedException {
