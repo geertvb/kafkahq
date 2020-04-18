@@ -345,9 +345,10 @@ public class RecordRepository extends AbstractRepository {
 
         return new Record(
             record,
-                keyDeserializer,
-                valueDeserializer,
-            avroWireFormatConverter.convertValueToWireFormat(record, this.kafkaModule.getRegistryClient(options.clusterId))
+            keyDeserializer,
+            valueDeserializer,
+            /*avroWireFormatConverter.convertValueToWireFormat(record, this.kafkaModule.getRegistryClient(options.clusterId)) */
+            record.value()
         );
     }
 
@@ -390,23 +391,23 @@ public class RecordRepository extends AbstractRepository {
         Optional<Integer> keySchemaId,
         Optional<Integer> valueSchemaId
     ) throws ExecutionException, InterruptedException {
-        AvroSerializer avroSerializer = this.schemaRegistryRepository.getAvroSerializer(clusterId);
+//        AvroSerializer avroSerializer = this.schemaRegistryRepository.getAvroSerializer(clusterId);
         byte[] keyAsBytes = null;
         byte[] valueAsBytes;
 
         if (key.isPresent()) {
-            if (keySchemaId.isPresent()) {
-                keyAsBytes = avroSerializer.toAvro(key.get(), keySchemaId.get());
-            } else {
+//            if (keySchemaId.isPresent()) {
+//                keyAsBytes = avroSerializer.toAvro(key.get(), keySchemaId.get());
+//            } else {
                 keyAsBytes = key.get().getBytes();
-            }
+//            }
         }
 
-        if (value != null && valueSchemaId.isPresent()) {
-            valueAsBytes = avroSerializer.toAvro(value, valueSchemaId.get());
-        } else {
+//        if (value != null && valueSchemaId.isPresent()) {
+//            valueAsBytes = avroSerializer.toAvro(value, valueSchemaId.get());
+//        } else {
             valueAsBytes = value != null ? value.getBytes() : null;
-        }
+//        }
 
         return produce(clusterId, topic, valueAsBytes, headers, keyAsBytes, partition, timestamp);
     }

@@ -1,8 +1,8 @@
-package org.kafkahq.serdes;
+package org.akhq.serdes;
 
 import io.micronaut.context.annotation.Factory;
 import org.apache.kafka.common.serialization.Deserializer;
-import org.kafkahq.repositories.SchemaRegistryRepository;
+import org.akhq.repositories.SchemaRegistryRepository;
 
 import javax.inject.Singleton;
 import java.util.function.Function;

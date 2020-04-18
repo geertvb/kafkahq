@@ -28,8 +28,8 @@ public class Record {
     private Integer keySchemaId;
     private Integer valueSchemaId;
     private Map<String, String> headers = new HashMap<>();
-    private final Deserializer valueDeserializer;
-    private final Deserializer keyDeserializer;
+    private Deserializer valueDeserializer;
+    private Deserializer keyDeserializer;
 
     @Getter(AccessLevel.NONE)
     private byte[] bytesKey;
@@ -53,9 +53,11 @@ public class Record {
         this.bytesValue = bytesValue;
         this.valueSchemaId = getAvroSchemaId(this.bytesValue);
         this.headers = headers;
+        this.valueDeserializer = null;
+        this.keyDeserializer = null;
     }
 
-    public Record(ConsumerRecord<byte[], byte[]> record, Deserializer keyDeserializer, Deserializer valueDeserializer) {
+    public Record(ConsumerRecord<byte[], byte[]> record, Deserializer keyDeserializer, Deserializer valueDeserializer, byte[] bytesValue) {
         this.topic = record.topic();
         this.partition = record.partition();
         this.offset = record.offset();
@@ -92,7 +94,7 @@ public class Record {
 
     public String getValue() {
         if (this.value == null) {
-            this.value = convertToString(bytesValue, valueSchemaId);
+            this.value = convertToString(bytesValue, valueSchemaId, valueDeserializer);
         }
 
         return this.value;
