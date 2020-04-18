@@ -1,7 +1,7 @@
 const path = require('path');
 const webpack = require('webpack');
 const merge = require('webpack-merge');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 /**********************************************************************************************************************\
@@ -120,9 +120,11 @@ module.exports = (env, argv) => {
                             {
                                 loader: 'sass-loader',
                                 options: {
-                                    outputStyle: 'expanded',
                                     sourceMap: true,
-                                    includePaths: [path.join(srcDirectory, 'css')]
+                                    sassOptions: {
+                                        includePaths: [path.join(srcDirectory, 'css')],
+                                        outputStyle: 'expanded',
+                                    }
                                 }
                             }
                         ]
@@ -132,7 +134,7 @@ module.exports = (env, argv) => {
                 {
                     test: /\.(jpe?g|png|gif|svg)$/,
                     exclude: [
-                        /\/fonts\//
+                        /[\\/]fonts[\\/]/
                     ],
                     loader: 'file-loader',
                     options: {
@@ -143,7 +145,7 @@ module.exports = (env, argv) => {
                 {
                     test: /\.(eot|svg|ttf|woff|woff2)(\?v=\d+\.\d+\.\d+)?$/,
                     include: [
-                        /\/fonts\//
+                        /[\\/]fonts[\\/]/
                     ],
                     loader: 'file-loader?name=font/[name].[ext]',
                 }
@@ -165,10 +167,10 @@ module.exports = (env, argv) => {
                 proxy: {
                     context: () => true,
                     '/':  {
-                        target: 'http://kafkahq:8080',
+                        target: 'http://akhq:8080',
                     },
                     '/livereload': {
-                        target: 'http://kafkahq:8080',
+                        target: 'http://akhq:8080',
                         ws: true,
                     }
                 }

@@ -1,9 +1,10 @@
-<#ftl output_format="HTML">
+<#ftl output_format="HTML" encoding="UTF-8">
 
 <#-- @ftlvariable name="clusterId" type="java.lang.String" -->
+<#-- @ftlvariable name="connectId" type="java.lang.String" -->
 <#-- @ftlvariable name="basePath" type="java.lang.String" -->
 <#-- @ftlvariable name="roles" type="java.util.ArrayList<java.lang.String>" -->
-<#-- @ftlvariable name="connects" type="java.util.List<org.kafkahq.models.ConnectDefinition>" -->
+<#-- @ftlvariable name="connects" type="java.util.List<org.akhq.models.ConnectDefinition>" -->
 
 <#import "includes/template.ftl" as template>
 
@@ -38,11 +39,15 @@
                 <tr>
                     <td>${connect.getName()}</td>
                     <td>
-                        <#if connect.getType() == "source">
-                            <i class="fa fa-forward" aria-hidden="true"></i>
-                        <#else>
-                            <i class="fa fa-backward" aria-hidden="true"></i>
-                        </#if>
+                        <#attempt>
+                            <#if connect.getType() == "source">
+                                <i class="fa fa-forward" aria-hidden="true"></i>
+                            <#else>
+                                <i class="fa fa-backward" aria-hidden="true"></i>
+                            </#if>
+                        <#recover>
+                            <i class="fa fa-question-circle" aria-hidden="true"></i>
+                        </#attempt>
                         ${connect.getShortClassName()}
                     </td>
                     <td>
@@ -57,12 +62,12 @@
                         </#list>
                     </td>
                     <td class="khq-row-action khq-row-action-main">
-                        <a href="${basePath}/${clusterId}/connect/${connect.getName()}" ><i class="fa fa-search"></i></a>
+                        <a href="${basePath}/${clusterId}/connect/${connectId}/${connect.getName()}" ><i class="fa fa-search"></i></a>
                     </td>
                     <#if canDelete == true>
                         <td class="khq-row-action">
                             <a
-                                    href="${basePath}/${clusterId}/connect/${connect.getName()}/delete"
+                                    href="${basePath}/${clusterId}/connect/${connectId}/${connect.getName()}/delete"
                                     data-confirm="Do you want to delete definition: <code>${connect.getName()}</code> ?"
                             ><i class="fa fa-trash"></i></a>
                         </td>
@@ -84,7 +89,7 @@
 
 <#if roles?seq_contains("connect/insert") == true>
     <@template.bottom>
-        <a href="${basePath}/${clusterId}/connect/create" class="btn btn-primary">Create a defintion</a>
+        <a href="${basePath}/${clusterId}/connect/${connectId}/create" class="btn btn-primary">Create a definition</a>
     </@template.bottom>
 </#if>
 

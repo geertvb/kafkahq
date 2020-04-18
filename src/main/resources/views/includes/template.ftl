@@ -10,17 +10,19 @@
 <#-- @ftlvariable name="roles" type="java.util.ArrayList<java.lang.String>" -->
 <#-- @ftlvariable name="username" type="java.lang.String" -->
 <#-- @ftlvariable name="loginEnabled" type="java.lang.Boolean" -->
+<#-- @ftlvariable name="connectList" type="java.util.List<java.lang.String>" -->
+<#-- @ftlvariable name="connectId" type="java.lang.String" -->
 
 <#macro header title tab="">
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8" />
-        <title>${title} | KafkaHQ</title>
+        <title>${title} | Akhq</title>
         <meta name="turbolinks-cache-control" content="no-cache" />
         <link rel="shortcut icon"
               type="image/png"
-              href="${basePath}/static/img/icon.png" />
+              href="${basePath}/static/img/icon_black.png" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700|Open+Sans:400,700" />
         <link rel="stylesheet" href="${basePath}/static/css/vendor.css" />
         <link rel="stylesheet" href="${basePath}/static/css/main.css" />
@@ -38,7 +40,7 @@
             <nav id="khq-sidebar">
                 <div class="sidebar-header">
                     <a href="${basePath}/">
-                        <h3 class="logo"><img src="${basePath}/static/img/logo.svg" alt=""/><sup><strong>HQ</strong></sup></h3>
+                        <h3 class="logo"><img src="${basePath}/static/img/logo.svg" alt=""/></h3>
                     </a>
                     <div class="version">${tag}</div>
                 </div>
@@ -90,10 +92,24 @@
                             <a href="${basePath}/${clusterId}/schema"><i class="fa fa-fw fa-cogs" aria-hidden="true"></i> Schema Registry</a>
                         </li>
                     </#if>
-                    <#if connectEnabled?? && connectEnabled == true && roles?seq_contains("connect") == true>
-                        <li class="${(tab == "connect")?then("active", "")}">
-                            <a href="${basePath}/${clusterId}/connect"><i class="fa fa-fw fa-exchange" aria-hidden="true"></i> Connect</a>
-                        </li>
+                    <#if (connectList)??>
+                        <#if roles?seq_contains("connect") == true && (connectList?size > 0)>
+                            <li class="${(tab == "connect")?then("active", "")}">
+                                <a href="#connects"
+                                   data-toggle="collapse"
+                                   aria-expanded="false"
+                                   class="dropdown-toggle"><i
+                                            class="fa fa-fw fa fa-exchange"
+                                            aria-hidden="true"></i> Connects <span class="badge badge-success">${(connectId??)?then(connectId,"")}</span></a>
+                                <ul class="collapse list-unstyled" id="connects">
+                                    <#list connectList as connect>
+                                        <li>
+                                            <a href="${basePath}/${clusterId}/connect/${connect}" >${connect}</a>
+                                        </li>
+                                    </#list>
+                                </ul>
+                            </li>
+                        </#if>
                     </#if>
                 </ul>
                 </#if>
